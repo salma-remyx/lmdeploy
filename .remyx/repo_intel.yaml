@@ -1,0 +1,18 @@
+schema_version: 1
+fork: salma-remyx/lmdeploy
+observed_landing_zones:
+- path: lmdeploy/pytorch/kernels/cuda/
+  shape_tags:
+  - unclassified
+  confirmed_by:
+  - arxiv: 2402.00025v2
+    mode: Mode 2 (adapted port)
+    call_site_specifics: "awq_linear in lmdeploy/pytorch/kernels/cuda/awq_kernels.py,\
+      \ invoked from wq_gemm_forward / AwqLinearW4A16Impl.forward in lmdeploy/pytorch/backends/cuda/awq_modules.py\
+      \ \u2014 the production CUDA AWQ W4A16 i"
+    branch: accelerating-a-triton-fused-kernel-for-w4a16-quantized-infer
+    timestamp: '2026-08-14T19:54:11Z'
+  last_observed: '2026-08-14T19:54:11Z'
+rejected_shapes: []
+coordination_signals: []
+last_updated: '2026-08-14T19:54:11Z'
