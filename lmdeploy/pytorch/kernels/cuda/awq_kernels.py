@@ -3,6 +3,8 @@ import torch
 import triton
 from triton import language as tl
 
+from .w4a16_splitk import choose_split_k
+
 
 def get_cuda_autotune_config():
     return [
@@ -215,7 +217,10 @@ def awq_linear(x, qweight, scales, qzeros):
     K = qweight.size(0)
     N = scales.size(1)
     group_size = K // scales.size(0)
-    SPLIT_K = max(1, K // 4096)
+    # Shape the SplitK decomposition from the problem size rather than a
+    # flat K//4096: skinny activation matrices leave SMs idle unless the
+    # reduction is split across more CTAs (see w4a16_splitk).
+    SPLIT_K = choose_split_k(M, N, K, device=x.device)
 
     def grid(META):
         """grid."""
@@ -263,6 +268,7 @@ def awq_linear(x, qweight, scales, qzeros):
         # Meta-parameters
         BLOCK_SIZE_M=BLOCK_SIZE_M,
         BLOCK_SIZE_K=group_size,
+        GROUP_SIZE_M=8,
         SPLIT_K=SPLIT_K,
         NUM_STAGES=num_stages,
     )
