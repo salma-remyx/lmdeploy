@@ -13,6 +13,18 @@ observed_landing_zones:
     branch: accelerating-a-triton-fused-kernel-for-w4a16-quantized-infer
     timestamp: '2026-08-14T19:54:11Z'
   last_observed: '2026-08-14T19:54:11Z'
+- path: lmdeploy/cli/
+  shape_tags:
+  - unclassified
+  confirmed_by:
+  - arxiv: 2608.09412v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: "lmdeploy lite kv_diagnose CLI subcommand \u2014 SubCliLite.add_parser_kv_diagnose()\
+      \ is registered in SubCliLite.add_parsers() (lmdeploy/cli/lite.py:190), which\
+      \ entrypoint.py:15 calls at CLI startup; it inv"
+    branch: kvdiagnosis-a-diagnostic-benchmark-for-kv-cache-compression-
+    timestamp: '2026-08-15T01:42:31Z'
+  last_observed: '2026-08-15T01:42:31Z'
 rejected_shapes: []
 coordination_signals: []
-last_updated: '2026-08-14T19:54:11Z'
+last_updated: '2026-08-15T01:42:31Z'
