@@ -529,6 +529,24 @@ class ArgumentHelper:
                                    'cache, excluding weights ')
 
     @staticmethod
+    def max_new_tokens(parser):
+        """Add argument max_new_tokens to parser."""
+
+        return parser.add_argument('--max-new-tokens',
+                                   type=int,
+                                   default=64,
+                                   help='The maximum number of new tokens to generate per request')
+
+    @staticmethod
+    def output_dir(parser):
+        """Add argument output_dir to parser."""
+
+        return parser.add_argument('--output-dir',
+                                   type=str,
+                                   default=None,
+                                   help='Directory to save diagnosis records and summary')
+
+    @staticmethod
     def adapters(parser):
         """Add argument adapters to parser."""
 

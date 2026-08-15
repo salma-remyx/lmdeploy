@@ -136,9 +136,55 @@ class SubCliLite:
         smooth_quant(**kwargs)
 
     @staticmethod
+    def kv_diagnose(args):
+        """Diagnose KV-cache quantization failures against a full-cache control.
+
+        Runs each prompt under `quant_policy=NONE` and under the configured
+        quant policy, classifies the pairs (C-to-C / C-to-W / W-to-W) and
+        reports per-failure diagnostics.
+        """
+        import json as json_lib
+
+        from lmdeploy.lite.apis.kv_cache_diagnosis import kv_cache_diagnosis
+        with open(args.dataset) as f:
+            dataset = json_lib.load(f)
+        kv_cache_diagnosis(model_path=args.model,
+                           sources=[row['source'] for row in dataset],
+                           references=[row['reference'] for row in dataset],
+                           quant_policy=args.quant_policy,
+                           session_len=args.session_len,
+                           cache_max_entry_count=args.cache_max_entry_count,
+                           max_new_tokens=args.max_new_tokens,
+                           tp=args.tp,
+                           output_dir=args.output_dir,
+                           log_level=args.log_level)
+
+    @staticmethod
+    def add_parser_kv_diagnose():
+        """Add parser for kv_diagnose command."""
+        parser = SubCliLite.subparsers.add_parser('kv_diagnose',
+                                                  formatter_class=DefaultsAndTypesHelpFormatter,
+                                                  description=SubCliLite.kv_diagnose.__doc__,
+                                                  help=SubCliLite.kv_diagnose.__doc__)
+        parser.set_defaults(run=SubCliLite.kv_diagnose)
+        parser.add_argument('model', type=str, help='The name or path of the model to be loaded')
+        parser.add_argument('--dataset',
+                            type=str,
+                            required=True,
+                            help='JSON file with a list of {"source": ..., "reference": ...} rows')
+        ArgumentHelper.quant_policy(parser, default=8)
+        ArgumentHelper.session_len(parser)
+        ArgumentHelper.cache_max_entry_count(parser)
+        ArgumentHelper.max_new_tokens(parser)
+        ArgumentHelper.output_dir(parser)
+        ArgumentHelper.tp(parser)
+        ArgumentHelper.log_level(parser)
+
+    @staticmethod
     def add_parsers():
         """Add all parsers."""
         SubCliLite.add_parser_auto_awq()
         SubCliLite.add_parser_auto_gptq()
         SubCliLite.add_parser_calibrate()
         SubCliLite.add_parser_smooth_quant()
+        SubCliLite.add_parser_kv_diagnose()

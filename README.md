@@ -27,6 +27,7 @@ ______________________________________________________________________
 <summary><b>2026</b></summary>
 
 - \[2026/04\] PyPI has expanded the storage quota for LMDeploy and wheel uploads have resumed. `v0.12.3` is now available on PyPI, so you can install it directly via `pip install lmdeploy`.
+- \[2026/08\] `lmdeploy lite kv_diagnose` diagnoses KV-cache quantization failures per prompt against a full-cache control, with likelihood-drift and output-agreement measurements (adapted from [KVDiagnosis](https://arxiv.org/abs/2608.09412))
 - \[2026/02\] Support [Qwen3.5](https://huggingface.co/collections/Qwen/qwen35)
 - \[2026/02\] Support [vllm-project/llm-compressor](https://github.com/vllm-project/llm-compressor) 4bit symmetric/asymmetric quantization. Refer [here](./docs/en/quantization/llm_compressor.md) for detailed guide
 
