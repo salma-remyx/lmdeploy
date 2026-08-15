@@ -25,6 +25,18 @@ observed_landing_zones:
     branch: kvdiagnosis-a-diagnostic-benchmark-for-kv-cache-compression-
     timestamp: '2026-08-15T01:42:31Z'
   last_observed: '2026-08-15T01:42:31Z'
+- path: lmdeploy/serve/processors/
+  shape_tags:
+  - unclassified
+  confirmed_by:
+  - arxiv: 2607.29678v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: lmdeploy/serve/core/async_engine.py AsyncEngine._get_prompt_input
+      -> MultimodalProcessor.get_prompt_input -> _get_text_prompt_input (multimodal.py:419);
+      the session_key wiring is live on every request
+    branch: toktier-exact-stateful-tokenization-for-agentic-llm-serving
+    timestamp: '2026-08-15T14:02:23Z'
+  last_observed: '2026-08-15T14:02:23Z'
 rejected_shapes: []
 coordination_signals: []
-last_updated: '2026-08-15T01:42:31Z'
+last_updated: '2026-08-15T14:02:23Z'
