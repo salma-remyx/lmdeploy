@@ -52,6 +52,7 @@ from lmdeploy.utils import get_logger
 
 from ..config import CacheConfig, SchedulerConfig
 from ..messages import MessageStatus, SchedulerSequence, SchedulerSession, SequenceManager, SequenceMeta
+from .arrival_rate import build_bursty_prefill_gate
 from .block_manager import build_block_manager
 from .block_trie import BlockTrie
 from .eviction_helper import build_eviction_helper
@@ -496,6 +497,11 @@ class Scheduler:
         self.scheduler_tick = 0
         self._long_prefill_policy = _envs.opt_ttft_policy
         self._long_prefill_aging_seconds_per_chunk = max(0.001, _envs.opt_ttft_aging_sec)
+        self.bursty_prefill_gate = build_bursty_prefill_gate(
+            _envs.bursty_prefill_policy,
+            _envs.bursty_prefill_reference_rate,
+            max_threshold=scheduler_config.max_batches,
+        )
 
     def tick(self):
         """Mark one scheduler progress step (once per forward dispatch)."""
@@ -751,6 +757,13 @@ class Scheduler:
         num_waiting = self.seq_manager.num_sequences(MessageStatus.WAITING)
         if (len(running) >= max_batches or num_waiting == 0):
             return running, swap_in_map, swap_out_map, copy_map
+
+        gate = self.bursty_prefill_gate
+        if gate is not None:
+            waiting_seqs = self.waiting
+            gate.estimator.observe_arrivals([seq.arrive_time for seq in waiting_seqs])
+            if gate.should_hold(waiting_seqs):
+                return running, swap_in_map, swap_out_map, copy_map
 
         waiting = _PrefillReorderer(self).reorder(self.waiting,
                                                  allow_long_prefill=allow_long_prefill,

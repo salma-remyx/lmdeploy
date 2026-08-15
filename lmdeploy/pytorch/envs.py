@@ -235,6 +235,10 @@ with set_envs():
     opt_ttft_short_turns = max(1, env_to_int('LMDEPLOY_PT_TTFT_SHORT_TURNS', 3))
     opt_ttft_aging_sec = env_to_float('LMDEPLOY_PT_TTFT_AGING_SEC', 2.0)
 
+    # bursty prefill batching
+    bursty_prefill_policy = env_to_choice('LMDEPLOY_PT_BURSTY_PREFILL_POLICY', 'off', {'off', 'wait'})
+    bursty_prefill_reference_rate = env_to_float('LMDEPLOY_PT_BURSTY_PREFILL_REF_RATE', 1.0)
+
 
 def get_all_envs():
     """Get all environment variables."""
