@@ -535,6 +535,7 @@ class AsyncEngine:
                                                                             chat_template_kwargs=chat_template_kwargs,
                                                                             media_io_kwargs=media_io_kwargs,
                                                                             mm_processor_kwargs=mm_processor_kwargs,
+                                                                            session_key=str(session_id),
                                                                             **kwargs)
                 prompt = prompt_input.get('prompt')
                 input_ids = prompt_input.get('input_ids')

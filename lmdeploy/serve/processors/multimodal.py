@@ -38,7 +38,8 @@ class MultimodalProcessor:
                  chat_template: BaseChatTemplate,
                  vl_encoder=None,
                  backend: str | None = None,
-                 allowed_media_domains: list[str] | None = None):
+                 allowed_media_domains: list[str] | None = None,
+                 enable_incremental_tokenizer: bool = False):
         """Initialize MultimodalProcessor.
 
         Args:
@@ -47,12 +48,20 @@ class MultimodalProcessor:
             vl_encoder: Optional ImageEncoder instance for multimodal processing.
             backend: Optional backend name ('turbomind' or 'pytorch') for multimodal processing.
             allowed_media_domains: Optional HTTP(S) media URL domain allowlist.
+            enable_incremental_tokenizer: If True, text prompts are encoded
+                through a session-aware incremental encoder that reuses the
+                previous request's ids for unchanged prefixes (TokTier-style
+                incremental repair) instead of re-tokenizing from scratch.
         """
         self.tokenizer = tokenizer
         self.chat_template = chat_template
         self.vl_encoder = vl_encoder
         self.backend = backend
         self.allowed_media_domains = allowed_media_domains
+        self.incremental_tokenizer = None
+        if enable_incremental_tokenizer:
+            from lmdeploy.serve.processors.incremental_tokenizer import IncrementalTokenizer
+            self.incremental_tokenizer = IncrementalTokenizer(tokenizer)
 
     @staticmethod
     def merge_message_content(msg: dict) -> dict:
@@ -217,6 +226,7 @@ class MultimodalProcessor:
                                chat_template_kwargs: dict | None = None,
                                media_io_kwargs: dict[str, Any] | None = None,
                                mm_processor_kwargs: dict[str, Any] | None = None,
+                               session_key: str | None = None,
                                **kwargs):
         """Process prompt and return prompt string and input_ids.
 
@@ -232,6 +242,7 @@ class MultimodalProcessor:
             chat_template_kwargs: Optional kwargs for chat template.
             media_io_kwargs: Optional kwargs for media IO operations.
             mm_processor_kwargs: Optional kwargs for multimodal processor.
+            session_key: Optional conversation key for incremental tokenization.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -246,6 +257,7 @@ class MultimodalProcessor:
                                                      tools=tools,
                                                      reasoning_effort=reasoning_effort,
                                                      chat_template_kwargs=chat_template_kwargs,
+                                                     session_key=session_key,
                                                      **kwargs)
 
         # Handle list input
@@ -261,6 +273,7 @@ class MultimodalProcessor:
                                                          tools=tools,
                                                          reasoning_effort=reasoning_effort,
                                                          chat_template_kwargs=chat_template_kwargs,
+                                                         session_key=session_key,
                                                          **kwargs)
 
             # Process multimodal input
@@ -370,8 +383,14 @@ class MultimodalProcessor:
                                      tools: list[object] | None = None,
                                      reasoning_effort: Literal['low', 'medium', 'high', 'max'] | None = None,
                                      chat_template_kwargs: dict | None = None,
+                                     session_key: str | None = None,
                                      **kwargs):
-        """Process text-only prompt and return prompt string and input_ids."""
+        """Process text-only prompt and return prompt string and input_ids.
+
+        Args:
+            session_key: optional conversation key enabling incremental
+                tokenization when a prefix was cached for it.
+        """
         # Change multimodal data to openai text messages
         if isinstance(prompt, list):
             prompt = [self.merge_message_content(msg) for msg in prompt]
@@ -396,7 +415,10 @@ class MultimodalProcessor:
             raise ValueError(
                 f'You are using base template to handle chat task. Please specify a `--chat-template` name chosen from `lmdeploy list` if you want to use OpenAI messages input.'  # noqa
             )
-        input_ids = self.tokenizer.encode(prompt, add_bos=True)
+        if self.incremental_tokenizer is not None:
+            input_ids = self.incremental_tokenizer.encode(prompt, session_key=session_key, add_bos=True)
+        else:
+            input_ids = self.tokenizer.encode(prompt, add_bos=True)
         return {'prompt': prompt, 'input_ids': input_ids}
 
     async def _get_multimodal_prompt_input(self,
