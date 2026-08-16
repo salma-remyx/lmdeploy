@@ -37,6 +37,18 @@ observed_landing_zones:
     branch: toktier-exact-stateful-tokenization-for-agentic-llm-serving
     timestamp: '2026-08-15T14:02:23Z'
   last_observed: '2026-08-15T14:02:23Z'
+- path: lmdeploy/pytorch/paging/
+  shape_tags:
+  - library-shape-public-api
+  confirmed_by:
+  - arxiv: 2608.06135v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: Scheduler._schedule_prefill in lmdeploy/pytorch/paging/scheduler.py:761,
+      reached from Scheduler.schedule(is_prefill=True), which the PyTorch engine's
+      scheduler loop calls at lmdeploy/pytorch/engine/in
+    branch: llm-inference-under-bursty-workload-distribution-modifying-t
+    timestamp: '2026-08-16T00:01:08Z'
+  last_observed: '2026-08-16T00:01:08Z'
 rejected_shapes: []
 coordination_signals: []
-last_updated: '2026-08-15T14:02:23Z'
+last_updated: '2026-08-16T00:01:08Z'
