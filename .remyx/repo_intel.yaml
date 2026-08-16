@@ -49,6 +49,18 @@ observed_landing_zones:
     branch: llm-inference-under-bursty-workload-distribution-modifying-t
     timestamp: '2026-08-16T00:01:08Z'
   last_observed: '2026-08-16T00:01:08Z'
+- path: lmdeploy/serve/core/
+  shape_tags:
+  - unclassified
+  confirmed_by:
+  - arxiv: 2608.11786v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: AsyncEngine.generate in lmdeploy/serve/core/async_engine.py:566,
+      which is the pre-existing engine entry reached by the OpenAI-compatible serving
+      endpoints (lmdeploy/serve/openai/chat_completions/servi
+    branch: language-conditional-dequantization-recovering-what-quantiza
+    timestamp: '2026-08-16T12:19:51Z'
+  last_observed: '2026-08-16T12:19:51Z'
 rejected_shapes: []
 coordination_signals: []
-last_updated: '2026-08-16T00:01:08Z'
+last_updated: '2026-08-16T12:19:51Z'
