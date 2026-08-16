@@ -32,6 +32,7 @@ from lmdeploy.pytorch.disagg.conn.protocol import (
 )
 from lmdeploy.serve.managers import Session, SessionManager
 from lmdeploy.serve.processors import MultimodalProcessor
+from lmdeploy.serve.processors.lang_adapter_router import LangAdapterRouter, build_lang_adapter_router
 from lmdeploy.tokenizer import DetokenizeState, Tokenizer
 from lmdeploy.utils import _get_and_verify_max_len, _stop_words, get_hf_gen_cfg, get_logger
 
@@ -78,6 +79,9 @@ class GenOut:
 class AsyncEngine:
     """Async inference engine. Maintaining a bunch of tm_model instances.
 
+    Class-level default so instances built without ``__init__`` (tests, engine
+    wrappers) still route to the base model rather than crashing.
+
     Args:
         model_path (str): the path of a model.
             It could be one of the following options:
@@ -103,6 +107,10 @@ class AsyncEngine:
         max_log_len (int): Max number of prompt characters or prompt tokens
             being printed in log. Default: Unlimited
     """
+
+    # Replaced in __init__ by a router over the configured adapters. The
+    # disabled default keeps adapter selection inert when no adapters exist.
+    lang_adapter_router = LangAdapterRouter(None)
 
     def __init__(self,
                  model_path: str,
@@ -147,6 +155,7 @@ class AsyncEngine:
         else:
             raise ValueError(f'unsupported backend {backend}')
         self.backend_config = self.engine.engine_config
+        self.lang_adapter_router = build_lang_adapter_router(getattr(self.backend_config, 'adapters', None))
         self.speculative_config = speculative_config
         self.is_sleeping = backend_config.empty_init
         self.sleeping_tags: set[str] = set() if not backend_config.empty_init else {'weights', 'kv_cache'}
@@ -424,6 +433,30 @@ class AsyncEngine:
             gen_config.max_new_tokens = max(0, self.session_len - len(input_ids))
         return gen_config
 
+    @staticmethod
+    def _routing_prompt_text(prompt) -> str | None:
+        """Extract the plain text a routing decision should be based on.
+
+        Language detection runs on the user's content, not on the chat
+        template scaffolding that would otherwise dominate a rendered prompt
+        and push every request toward the template's own language.
+        """
+        if isinstance(prompt, str):
+            return prompt
+        if isinstance(prompt, list):
+            parts = []
+            for msg in prompt:
+                if not isinstance(msg, dict):
+                    continue
+                content = msg.get('content', '')
+                if isinstance(content, str):
+                    parts.append(content)
+                elif isinstance(content, list):
+                    parts.extend(
+                        item.get('text', '') for item in content if isinstance(item, dict))
+            return ' '.join(part for part in parts if part)
+        return None
+
     @asynccontextmanager
     async def safe_run(self, handle, session, **kwargs):
         generator = handle.async_stream_infer(session.session_id, **kwargs)
@@ -527,6 +560,10 @@ class AsyncEngine:
             try:
                 prompt = messages
                 self.request_logger.log_prompt(session, prompt=prompt)
+                if adapter_name is None:
+                    # pick a per-language correction adapter when the request
+                    # did not name one itself
+                    adapter_name = self.lang_adapter_router.route(self._routing_prompt_text(prompt))
                 prompt_input = await self.prompt_processor.get_prompt_input(prompt=prompt,
                                                                             do_preprocess=do_preprocess,
                                                                             adapter_name=adapter_name,

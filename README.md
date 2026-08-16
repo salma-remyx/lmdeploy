@@ -27,6 +27,7 @@ ______________________________________________________________________
 <summary><b>2026</b></summary>
 
 - \[2026/04\] PyPI has expanded the storage quota for LMDeploy and wheel uploads have resumed. `v0.12.3` is now available on PyPI, so you can install it directly via `pip install lmdeploy`.
+- \[2026/08\] Requests can now select a LoRA adapter by their own language. Name an adapter after an ISO 639-1 code (`fr`, `ja`, ...) in `adapters` and multilingual prompts are routed to it automatically — adapted from [Language-Conditional Dequantization](https://arxiv.org/abs/2608.11786), which recovers quantization-induced quality loss with per-language LoRA corrections. Set `LMDEPLOY_LANG_ADAPTER_DISABLE=1` to turn routing off.
 - \[2026/02\] Support [Qwen3.5](https://huggingface.co/collections/Qwen/qwen35)
 - \[2026/02\] Support [vllm-project/llm-compressor](https://github.com/vllm-project/llm-compressor) 4bit symmetric/asymmetric quantization. Refer [here](./docs/en/quantization/llm_compressor.md) for detailed guide
 
