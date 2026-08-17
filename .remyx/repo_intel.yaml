@@ -68,6 +68,12 @@ observed_landing_zones:
     branch: language-conditional-dequantization-recovering-what-quantiza
     timestamp: '2026-08-16T12:19:51Z'
   last_observed: '2026-08-16T12:19:51Z'
-rejected_shapes: []
+rejected_shapes:
+- shape_tag: null
+  reason_code: null
+  reason_summary: ''
+  observed:
+  - arxiv: 2402.10076v1
+    timestamp: '2026-08-17T23:42:19Z'
 coordination_signals: []
-last_updated: '2026-08-17T01:25:00Z'
+last_updated: '2026-08-17T23:42:19Z'
