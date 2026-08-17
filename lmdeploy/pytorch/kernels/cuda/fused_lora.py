@@ -46,6 +46,7 @@ def _fused_lora_kernel(
     lora_b_ptr,
     c_ptr,
     scaling_ptr,
+    weight_scaling_ptr,
     rank_start_ptr,
     ranks_ptr,
     seq_start_ptr,
@@ -66,6 +67,7 @@ def _fused_lora_kernel(
     BLOCK_SIZE_N: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     CUM: tl.constexpr,
+    HAS_WEIGHT_SCALING: tl.constexpr,
 ):
     """Fused lora kernel."""
     pid = tl.program_id(axis=0)
@@ -91,6 +93,23 @@ def _fused_lora_kernel(
     mask_cm = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M) < M
     offs_cm = offs_m
     c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_n[None, :]
+
+    # dora: rescale the base output by the per-adapter, per-column weight
+    # scaling m / ||W + s*BA||_c before accumulating the lora update
+    if HAS_WEIGHT_SCALING:
+        if CUM:
+            for n in range(0, tl.cdiv(N, BLOCK_SIZE_N)):
+                mask_cn = (offs_n < N - n * BLOCK_SIZE_N)
+                c_mask = mask_cm[:, None] * mask_cn[None, :]
+                origin = tl.load(c_ptrs, mask=c_mask, other=0.0)
+                w_s = tl.load(weight_scaling_ptr + adapter_id * N + n * BLOCK_SIZE_N + offs_n)
+                val = origin * w_s[None, :]
+                _atomic_store(c_ptrs, val, mask=c_mask)
+                c_ptrs += stride_cn * BLOCK_SIZE_N
+            c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_n[None, :]
+        else:
+            w_s = tl.load(weight_scaling_ptr + adapter_id * N + offs_n)
+            c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_n[None, :]
 
     if rank == 0:
         if not CUM:
@@ -128,6 +147,9 @@ def _fused_lora_kernel(
         for n in range(0, tl.cdiv(N, BLOCK_SIZE_N)):
             lb = tl.load(lb_ptrs, mask=offs_n[None, :] < N - n * BLOCK_SIZE_N)
             c = tl.dot(ar, lb)
+            if HAS_WEIGHT_SCALING:
+                w_s = tl.load(weight_scaling_ptr + adapter_id * N + n * BLOCK_SIZE_N + offs_n)
+                c = c * w_s[None, :]
 
             mask_cn = (offs_n < N - n * BLOCK_SIZE_N)
             c_mask = mask_cm[:, None] * mask_cn[None, :]
@@ -151,7 +173,8 @@ def fused_lora(input: torch.Tensor,
                max_rank: int,
                max_seqlen: int,
                output: torch.Tensor = None,
-               cum: bool = False):
+               cum: bool = False,
+               weight_scaling: torch.Tensor = None):
     """Fused lora."""
 
     def grid(META):
@@ -170,6 +193,10 @@ def fused_lora(input: torch.Tensor,
         assert output.size(0) == M
         assert output.size(1) == N
 
+    if weight_scaling is not None:
+        assert weight_scaling.size(0) > 0
+        assert weight_scaling.size(1) == N
+
     BLOCK_SIZE_R = max(16, max_rank)
     _fused_lora_kernel[grid](
         input,
@@ -177,6 +204,7 @@ def fused_lora(input: torch.Tensor,
         lora_b,
         output,
         scaling,
+        weight_scaling if weight_scaling is not None else scaling,
         rank_start,
         ranks,
         seq_start,
@@ -194,6 +222,7 @@ def fused_lora(input: torch.Tensor,
         stride_cn=output.stride(1),
         BLOCK_SIZE_R=BLOCK_SIZE_R,
         CUM=cum,
+        HAS_WEIGHT_SCALING=weight_scaling is not None,
     )
 
     return output

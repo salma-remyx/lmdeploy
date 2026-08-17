@@ -105,6 +105,8 @@ LMDeploy is a toolkit for compressing, deploying, and serving LLM, developed by 
 
 - **Excellent Compatibility**: LMDeploy supports [KV Cache Quant](docs/en/quantization/kv_quant.md), [AWQ](docs/en/quantization/w4a16.md) and [Automatic Prefix Caching](docs/en/inference/turbomind_config.md) to be used simultaneously.
 
+- **LoRA / DoRA Adapters**: adapters trained with PEFT can be served through `--adapters`, including DoRA checkpoints whose `||W + s*BA||_c` norms are computed with a factored formulation that never materializes the dense `BA` product.
+
 # Performance
 
 ![v0 1 0-benchmark](https://github.com/InternLM/lmdeploy/assets/4560679/8e455cf1-a792-4fa8-91a2-75df96a2a5ba)

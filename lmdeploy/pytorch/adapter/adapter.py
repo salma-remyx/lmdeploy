@@ -94,7 +94,7 @@ def load_lora_weights(model: nn.Module, weights: Iterable[tuple[str, torch.Tenso
         name = name[prefix_len:]
         splited_name = name.split('.')
         assert splited_name[-1] == 'weight'
-        assert splited_name[-2] in ['lora_A', 'lora_B']
+        assert splited_name[-2] in ['lora_A', 'lora_B', 'lora_magnitude']
         mod_name = splited_name[-3]
         dot_mod_name = f'.{mod_name}'
         if dot_mod_name in key_map:
@@ -104,6 +104,10 @@ def load_lora_weights(model: nn.Module, weights: Iterable[tuple[str, torch.Tenso
         name = name[:-w_len]
         param_name = name.replace(dot_mod_name, replace_name)
 
+        if param_name not in params_dict:
+            # adapter carries a dora magnitude but the layer was not built for
+            # dora (use_dora off); the magnitude is meaningless without it
+            continue
         param = params_dict[param_name]
         load_weight(param, loaded_weight, adapter_id=adapter_id)
 

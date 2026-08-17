@@ -17,6 +17,9 @@ class AdapterInfo:
     base_slice: slice
     rank_offsets: torch.Tensor = field(init=False)
     max_rank: int = field(init=False)
+    # per-adapter rescaling of the base output, [num_adapters, out_features].
+    # Set by dora adapters as m / ||W + s*BA||_c, None for plain lora.
+    weight_scaling: torch.Tensor = None
 
     def __post_init__(self):
         """Post init."""

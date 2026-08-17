@@ -276,6 +276,8 @@ def add_adapters(model: torch.nn.Module,
     target_names = list(target_names)
     target_names = sorted(target_names)
 
+    use_dora = any(getattr(cfg, 'use_dora', False) for cfg in adapter_cfgs)
+
     target_infos = dict()
     for _, target_name in enumerate(target_names):
         # get ranks and scalings
@@ -318,6 +320,8 @@ def add_adapters(model: torch.nn.Module,
                 colwise=colwise,
                 is_tp=mod.is_tp,
                 lora_b_spliter=lora_b_spliter,
+                use_dora=use_dora,
+                weight=mod.weight,
             )
             mod.lora_adapters[target_name] = lora
 
@@ -333,6 +337,15 @@ def add_adapters(model: torch.nn.Module,
             model.load_lora_weights(state_dict.items(), adapter_id=adapter_id)
         else:
             load_lora_weights(model, state_dict.items(), adapter_id=adapter_id)
+
+    # dora: fold m/||W+s*BA||_c into the adapter info now that all weights are
+    # in place, so the serving path rescales base + lora without extra work
+    if use_dora:
+        for _, mod in model.named_modules():
+            if not hasattr(mod, 'lora_adapters'):
+                continue
+            for lora in mod.lora_adapters.values():
+                lora.finalize_dora()
 
     return target_infos
 

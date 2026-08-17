@@ -73,10 +73,15 @@ class TritonLoRAImpl(LoRAImpl):
             max_seqlen=lora_input.max_seq_len,
             output=kernel_output,
             cum=cum,
+            weight_scaling=getattr(adapter_info, 'weight_scaling', None),
         )
 
         if not base_output.is_contiguous():
             lora_out = lora_out.reshape(sliced_base.shape)
+            weight_scaling = getattr(adapter_info, 'weight_scaling', None)
+            if weight_scaling is not None:
+                # dora: the base output needs m/||W+s*BA||_c as well
+                sliced_base.mul_(weight_scaling[lora_input.adapter_ids].to(sliced_base.dtype))
             sliced_base.add_(lora_out)
         return base_output
 
