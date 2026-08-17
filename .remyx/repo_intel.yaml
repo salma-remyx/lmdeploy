@@ -3,7 +3,7 @@ fork: salma-remyx/lmdeploy
 observed_landing_zones:
 - path: lmdeploy/pytorch/kernels/cuda/
   shape_tags:
-  - unclassified
+  - library-shape-public-api
   confirmed_by:
   - arxiv: 2402.00025v2
     mode: Mode 2 (adapted port)
@@ -12,7 +12,14 @@ observed_landing_zones:
       \ \u2014 the production CUDA AWQ W4A16 i"
     branch: accelerating-a-triton-fused-kernel-for-w4a16-quantized-infer
     timestamp: '2026-08-14T19:54:11Z'
-  last_observed: '2026-08-14T19:54:11Z'
+  - arxiv: 2603.22276v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: add_adapters in lmdeploy/pytorch/models/patch.py (itself
+      invoked from the pre-existing PyTorch engine path at lmdeploy/pytorch/engine/model_agent/agent.py:1205
+      when adapters are attached), which now r
+    branch: scaling-dora-high-rank-adaptation-via-factored-norms-and-fus
+    timestamp: '2026-08-17T01:25:00Z'
+  last_observed: '2026-08-17T01:25:00Z'
 - path: lmdeploy/cli/
   shape_tags:
   - unclassified
@@ -63,4 +70,4 @@ observed_landing_zones:
   last_observed: '2026-08-16T12:19:51Z'
 rejected_shapes: []
 coordination_signals: []
-last_updated: '2026-08-16T12:19:51Z'
+last_updated: '2026-08-17T01:25:00Z'
