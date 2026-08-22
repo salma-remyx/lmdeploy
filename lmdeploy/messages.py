@@ -450,10 +450,14 @@ class PytorchEngineConfig:
         logprobs_mode: The mode of logprob, options: ['raw_logits', 'raw_logprobs']
         dllm_block_length: Block size of block diffusion model.
         dllm_unmasking_strategy: Dllm unmasking strategy, options:
-            ['low_confidence_dynamic', 'low_confidence_static', 'sequential'].
+            ['low_confidence_dynamic', 'low_confidence_static', 'sequential',
+             'ripple_pivot'].
         dllm_denoising_steps: Dllm denoising steps.
         dllm_confidence_threshold: dllm unmasking threshold for
             dynamic unmasking.
+        dllm_num_pivots: number of mid-entropy positions committed per
+            step by the 'ripple_pivot' strategy when no position reaches
+            the confidence threshold.
     """
     dtype: str = 'auto'
     tp: int = 1
@@ -504,6 +508,7 @@ class PytorchEngineConfig:
     dllm_unmasking_strategy: str = 'low_confidence_dynamic'
     dllm_denoising_steps: int = None
     dllm_confidence_threshold: float = 0.85
+    dllm_num_pivots: int = 1
 
     role: EngineRole = EngineRole.Hybrid
     migration_backend: MigrationBackend = MigrationBackend.DLSlime

@@ -5,6 +5,8 @@ from torch.profiler import record_function
 from lmdeploy.pytorch import consts
 from lmdeploy.pytorch.config import DLLMConfig, UnmaskingStrategy
 
+from .pivot_scheduler import PivotScheduler
+
 DLLM_MASKED = consts.DLLM_MASKED
 DLLM_UNMASKED = consts.DLLM_UNMASKED
 DLLM_CACHED = consts.DLLM_CACHED
@@ -14,6 +16,10 @@ class UnmaskingProcessor:
 
     def __init__(self, dllm_config: DLLMConfig):
         self.dllm_config = dllm_config
+        self.pivot_scheduler = None
+        if dllm_config.unmasking_strategy == UnmaskingStrategy.RIPPLE_PIVOT:
+            self.pivot_scheduler = PivotScheduler.from_dllm_config(dllm_config,
+                                                                   num_pivots=dllm_config.num_pivots)
 
     def _get_scores(self, logits: torch.Tensor, token_ids: torch.Tensor):
         """Get scores."""
@@ -66,6 +72,11 @@ class UnmaskingProcessor:
         dllm_mask[is_masked] = DLLM_UNMASKED
         return dllm_mask.flatten()
 
+    def ripple_pivot(self, logits: torch.Tensor, token_ids: torch.Tensor, dllm_mask: torch.Tensor):
+        """Ripple-Pivot: confidence criterion, mid-entropy pivot when idle."""
+        dllm_mask, _ = self.pivot_scheduler(logits, token_ids, dllm_mask)
+        return dllm_mask.flatten()
+
     def sequential(self, dllm_mask: torch.Tensor):
         """sequential."""
         block_size = self.dllm_config.block_length
@@ -111,6 +122,8 @@ class UnmaskingProcessor:
             dllm_mask = self.low_confidence_dynamic(logits, token_ids, dllm_mask)
         elif strategy == UnmaskingStrategy.SEQUENTIAL:
             dllm_mask = self.sequential(dllm_mask)
+        elif strategy == UnmaskingStrategy.RIPPLE_PIVOT:
+            dllm_mask = self.ripple_pivot(logits, token_ids, dllm_mask)
         else:
             raise RuntimeError(f'strategy {strategy} not supported.')
 

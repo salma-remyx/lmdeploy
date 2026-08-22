@@ -759,7 +759,8 @@ class ArgumentHelper:
         return parser.add_argument('--dllm-unmasking-strategy',
                                    type=str,
                                    default='low_confidence_dynamic',
-                                   choices=['low_confidence_dynamic', 'low_confidence_static', 'sequential'],
+                                   choices=['low_confidence_dynamic', 'low_confidence_static', 'sequential',
+                                            'ripple_pivot'],
                                    help='The unmasking strategy for dllm.')
 
     @staticmethod
@@ -777,6 +778,15 @@ class ArgumentHelper:
                                    type=float,
                                    default=0.85,
                                    help='The confidence threshold for dllm.')
+
+    @staticmethod
+    def dllm_num_pivots(parser):
+        """Number of mid-entropy pivots committed by 'ripple_pivot'."""
+        return parser.add_argument('--dllm-num-pivots',
+                                   type=int,
+                                   default=1,
+                                   help='Number of mid-entropy positions committed per step by the '
+                                   "'ripple_pivot' unmasking strategy.")
 
     @staticmethod
     def enable_return_routed_experts(parser):

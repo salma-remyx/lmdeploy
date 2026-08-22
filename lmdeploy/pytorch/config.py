@@ -596,6 +596,8 @@ class UnmaskingStrategy(enum.Enum):
     LOW_CONFIDENCE_DYNAMIC = enum.auto()
     # unmasking with topk in a block
     LOW_CONFIDENCE_STATIC = enum.auto()
+    # confidence first, mid-entropy pivot when the confidence criterion is idle
+    RIPPLE_PIVOT = enum.auto()
 
     @classmethod
     def from_str(cls, strategy: str):
@@ -607,6 +609,8 @@ class UnmaskingStrategy(enum.Enum):
             return cls.LOW_CONFIDENCE_DYNAMIC
         elif strategy == 'low_confidence_static':
             return cls.LOW_CONFIDENCE_STATIC
+        elif strategy == 'ripple_pivot':
+            return cls.RIPPLE_PIVOT
         else:
             raise ValueError(f'Unknown unmasking strategy: {strategy}')
 
@@ -617,6 +621,7 @@ class DLLMConfig:
     unmasking_strategy: UnmaskingStrategy = UnmaskingStrategy.LOW_CONFIDENCE_DYNAMIC
     denoising_steps: int = None
     confidence_threshold: float = 0.85
+    num_pivots: int = 1
 
 
 @dataclass
@@ -640,7 +645,8 @@ class MiscConfig:
         dllm_config = DLLMConfig(block_length=engine_config.dllm_block_length,
                                  unmasking_strategy=dllm_unmasking_strategy,
                                  denoising_steps=engine_config.dllm_denoising_steps,
-                                 confidence_threshold=engine_config.dllm_confidence_threshold)
+                                 confidence_threshold=engine_config.dllm_confidence_threshold,
+                                 num_pivots=engine_config.dllm_num_pivots)
         misc_config = cls(
             custom_module_map=engine_config.custom_module_map,
             empty_init=engine_config.empty_init,
