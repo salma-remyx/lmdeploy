@@ -7,11 +7,13 @@ import torch
 import torch.nn.functional as F
 
 from lmdeploy.pytorch.envs import (
+    eplb_dispatch_policy,
     eplb_experts_statistic_file,
     eplb_num_groups,
     eplb_num_redundant_experts,
     eplb_ranks_per_node,
 )
+from lmdeploy.pytorch.nn.makespan_dispatch import compute_makespan_preferences
 
 
 def balanced_packing(weight: torch.Tensor, num_packs: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -143,7 +145,17 @@ def compute_logical_to_rank_dispatch_physical_map(
     num_gpus: int,
     num_physical_experts: int,
     seed: int = 42,
+    token_counts: torch.Tensor = None,
+    dispatch_policy: str = None,
 ):
+    if dispatch_policy == 'makespan':
+        return compute_makespan_preferences(
+            logical_to_all_physical_map=logical_to_all_physical_map,
+            token_counts=token_counts,
+            num_gpus=num_gpus,
+            num_physical_experts=num_physical_experts,
+        )
+
     r = random.Random(seed)
     num_local_physical_experts = num_physical_experts // num_gpus
     num_layers, num_logical_experts, _ = logical_to_all_physical_map.shape
@@ -196,7 +208,11 @@ class EPLBMetadata:
         assert num_physical_experts_0 == num_physical_experts_1
 
     @staticmethod
-    def _init_raw(ep_size: int, physical_to_logical_map: torch.Tensor, logical_to_all_physical_map: torch.Tensor):
+    def _init_raw(ep_size: int,
+                  physical_to_logical_map: torch.Tensor,
+                  logical_to_all_physical_map: torch.Tensor,
+                  token_counts: torch.Tensor = None,
+                  dispatch_policy: str = None):
         _, num_physical_experts = physical_to_logical_map.shape
         logical_to_all_physical_map_padded = F.pad(
             logical_to_all_physical_map,
@@ -212,6 +228,8 @@ class EPLBMetadata:
                 logical_to_all_physical_map,
                 num_gpus=ep_size,
                 num_physical_experts=num_physical_experts,
+                token_counts=token_counts,
+                dispatch_policy=dispatch_policy if dispatch_policy is not None else eplb_dispatch_policy,
             ),
         )
 
@@ -247,6 +265,7 @@ class EPLBMetadata:
             ep_size=ep_size,
             physical_to_logical_map=physical_to_logical_map,
             logical_to_all_physical_map=logical_to_all_physical_map,
+            token_counts=experts_statistic,
         )
 
 

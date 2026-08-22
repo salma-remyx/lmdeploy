@@ -171,6 +171,8 @@ with set_envs():
     eplb_experts_statistic_file = os.getenv('LMDEPLOY_EPLB_EXPERTS_STATISTIC_FILE', None)
     eplb_ranks_per_node = env_to_int('LMDEPLOY_EPLB_RANKS_PER_NODE', 8)
     eplb_num_redundant_experts = env_to_int('LMDEPLOY_EPLB_NUM_REDUNDANT_EXPERTS', 32)
+    eplb_dispatch_policy = env_to_choice('LMDEPLOY_EPLB_DISPATCH_POLICY', 'random',
+                                         {'random', 'makespan'})
 
     # deepgemm
     os.getenv('DG_JIT_DEBUG', '0')
