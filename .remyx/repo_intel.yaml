@@ -38,7 +38,12 @@ observed_landing_zones:
       \ entrypoint.py:15 calls at CLI startup; it inv"
     branch: kvdiagnosis-a-diagnostic-benchmark-for-kv-cache-compression-
     timestamp: '2026-08-15T01:42:31Z'
-  last_observed: '2026-08-15T01:42:31Z'
+  - arxiv: 2608.11742v1
+    mode: ''
+    call_site_specifics: ''
+    branch: ripple-pivot-search-active-parallel-decoding-for-diffusion-l
+    timestamp: '2026-08-22T14:27:08Z'
+  last_observed: '2026-08-22T14:27:08Z'
 - path: lmdeploy/serve/processors/
   shape_tags:
   - unclassified
@@ -83,4 +88,4 @@ rejected_shapes:
   - arxiv: 2402.10076v1
     timestamp: '2026-08-17T23:42:19Z'
 coordination_signals: []
-last_updated: '2026-08-22T03:23:52Z'
+last_updated: '2026-08-22T14:27:08Z'
