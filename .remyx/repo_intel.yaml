@@ -19,7 +19,14 @@ observed_landing_zones:
       when adapters are attached), which now r
     branch: scaling-dora-high-rank-adaptation-via-factored-norms-and-fus
     timestamp: '2026-08-17T01:25:00Z'
-  last_observed: '2026-08-17T01:25:00Z'
+  - arxiv: 2608.19758v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: "flash_attn_varlen_func in lmdeploy/pytorch/kernels/cuda/flashattention.py\
+      \ \u2014 the pre-existing Triton prefill entry point, already invoked from TritonAttentionImpl.forward\
+      \ (lmdeploy/pytorch/backends/cud"
+    branch: flashprefill-v2-block-sparse-prefill-attention-for-long-cont
+    timestamp: '2026-08-22T03:23:52Z'
+  last_observed: '2026-08-22T03:23:52Z'
 - path: lmdeploy/cli/
   shape_tags:
   - unclassified
@@ -76,4 +83,4 @@ rejected_shapes:
   - arxiv: 2402.10076v1
     timestamp: '2026-08-17T23:42:19Z'
 coordination_signals: []
-last_updated: '2026-08-17T23:42:19Z'
+last_updated: '2026-08-22T03:23:52Z'
