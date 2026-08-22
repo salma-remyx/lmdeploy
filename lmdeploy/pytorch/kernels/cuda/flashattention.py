@@ -57,14 +57,19 @@ def _load_kv(ptrs, boundary_check: tl.constexpr):
 def _prefill_fwd_inner(acc, l_i, m_i, q, k_ptrs, v_ptrs, q1, k1_ptrs, loop_start, loop_end, sm_scale, alibi_slope,
                        global_offs_m, history_mask, kv_min_loc, causal_mask: tl.constexpr, window_size: tl.constexpr,
                        logit_softcapping: tl.constexpr, k_bound: tl.constexpr, v_bound: tl.constexpr,
-                       shared_kv: tl.constexpr, block_sparse_size: tl.constexpr, BLOCK_N: tl.constexpr,
-                       BLOCK_DK1: tl.constexpr):
+                       shared_kv: tl.constexpr, block_sparse_size: tl.constexpr, sparse_threshold: tl.constexpr,
+                       BLOCK_N: tl.constexpr, BLOCK_DK1: tl.constexpr):
     k_ptrs = tl.advance(k_ptrs, (0, loop_start))
     v_ptrs = tl.advance(v_ptrs, (loop_start, 0))
     if BLOCK_DK1:
         k1_ptrs = tl.advance(k1_ptrs, (0, loop_start))
 
     offs_n = tl.arange(0, BLOCK_N)
+    # running statistics of the per-row block maxima, consumed by the
+    # FlashPrefill V2 mean-correction term at the end of the loop
+    block_max_sum = tl.zeros_like(m_i)
+    block_cnt = tl.zeros_like(m_i)
+    block_drop = tl.zeros_like(m_i)
     for start_n in range(loop_start, loop_end, BLOCK_N):
         start_n = tl.multiple_of(start_n, BLOCK_N)
 
@@ -121,6 +126,23 @@ def _prefill_fwd_inner(acc, l_i, m_i, q, k_ptrs, v_ptrs, q1, k1_ptrs, loop_start
             bias = -tl.abs(relative_pos).to(tl.float32) * alibi_slope * tl_log2(math.e)
             qk += bias
 
+        if sparse_threshold > 0.0:
+            # FlashPrefill V2: drop the row's contribution from this block
+            # when its best logit is more than `sparse_threshold` below the
+            # running row max. `qk` already lives in excess-over-m_i_new
+            # space, so the block max is <= 0 and the test is a shift by 0.
+            qk_max = tl.max(qk, 1)
+            keep = (qk_max + sparse_threshold) >= 0.0
+            qk = tl.where(keep[:, None], qk, (-1e30))
+            # running stats over the blocks this row actually saw; rows
+            # whose block is fully causally masked are excluded so their
+            # -1e30 sentinel cannot poison the mean below
+            seen = qk_max > -1e29
+            dropped = tl.where(keep, 0.0, 1.0)
+            block_max_sum += tl.where(seen, qk_max + m_i_new, 0.0)
+            block_cnt += tl.where(seen, 1.0, 0.0)
+            block_drop += tl.where(seen, dropped, 0.0)
+
         # -- compute p, m_i and l_i
         p = tl_exp2(qk)
         alpha = tl_exp2(m_i - m_i_new)
@@ -143,6 +165,12 @@ def _prefill_fwd_inner(acc, l_i, m_i, q, k_ptrs, v_ptrs, q1, k1_ptrs, loop_start
         v_ptrs = tl.advance(v_ptrs, (BLOCK_N, 0))
         if BLOCK_DK1:
             k1_ptrs = tl.advance(k1_ptrs, (0, BLOCK_N))
+
+    if sparse_threshold > 0.0:
+        # mean correction: put back the mass the dropped blocks would have
+        # contributed, estimated as one unit at the mean seen block max.
+        mean_max = block_max_sum / tl.maximum(block_cnt, 1.0)
+        l_i = l_i + block_drop * tl_exp2(mean_max - m_i)
 
     return acc, l_i, m_i
 
@@ -195,6 +223,7 @@ def _flash_prefill_fwd_kernel(
     logit_softcapping: tl.constexpr,
     shared_kv: tl.constexpr,
     block_sparse_size: tl.constexpr,
+    sparse_threshold: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_DK: tl.constexpr,
@@ -331,6 +360,7 @@ def _flash_prefill_fwd_kernel(
                                        v_bound=v_bound0,
                                        shared_kv=shared_kv,
                                        block_sparse_size=block_sparse_size,
+                                       sparse_threshold=sparse_threshold,
                                        BLOCK_N=BLOCK_N,
                                        BLOCK_DK1=BLOCK_DK1)
 
@@ -361,6 +391,7 @@ def _flash_prefill_fwd_kernel(
                                        v_bound=v_bound1,
                                        shared_kv=shared_kv,
                                        block_sparse_size=block_sparse_size,
+                                       sparse_threshold=sparse_threshold,
                                        BLOCK_N=BLOCK_N,
                                        BLOCK_DK1=BLOCK_DK1)
     # epilogue
@@ -493,11 +524,17 @@ def flash_attn_varlen_func(
     alibi_slopes: Tensor = None,
     sinks: Tensor = None,
     block_sparse_size: int = 1,
+    sparse_threshold: float = 0.0,
     kv_layout: str = 'hsd',
 ):
     """Varlen flash Attention forward.
 
     Support sliding window, softcapping.
+
+    ``sparse_threshold`` enables the block-sparse prefill path adapted
+    from FlashPrefill V2: a KV block row is dropped when its max logit is
+    more than the threshold below the running row max, and the dropped
+    mass is estimated by a mean-correction term. 0.0 keeps the dense path.
     """
 
     global _nv_cap
@@ -606,6 +643,7 @@ def flash_attn_varlen_func(
         logit_softcapping=softcap,
         shared_kv=shared_kv,
         block_sparse_size=block_sparse_size,
+        sparse_threshold=sparse_threshold,
         BLOCK_DK=BLOCK_DK,
         BLOCK_DK1=BLOCK_DK1,
         BLOCK_DV=BLOCK_DV,
