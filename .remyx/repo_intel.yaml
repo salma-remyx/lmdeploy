@@ -99,6 +99,18 @@ observed_landing_zones:
     branch: runtime-observability-for-heterogeneous-attention-memory
     timestamp: '2026-08-23T08:48:41Z'
   last_observed: '2026-08-23T08:48:41Z'
+- path: lmdeploy/pytorch/nn/linear/
+  shape_tags:
+  - library-shape-public-api
+  confirmed_by:
+  - arxiv: 2608.13426v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: "LinearBase.forward (lmdeploy/pytorch/nn/linear/base.py:244)\
+      \ \u2014 the single forward inherited by every linear subclass (BaseLinear,\
+      \ W8A8Linear, merged/QKV variants; none override forward), built through "
+    branch: reduced-matrix-multiplication-input-adaptive-matrix-product-
+    timestamp: '2026-08-23T19:31:12Z'
+  last_observed: '2026-08-23T19:31:12Z'
 rejected_shapes:
 - shape_tag: null
   reason_code: null
@@ -107,4 +119,4 @@ rejected_shapes:
   - arxiv: 2402.10076v1
     timestamp: '2026-08-17T23:42:19Z'
 coordination_signals: []
-last_updated: '2026-08-23T08:48:41Z'
+last_updated: '2026-08-23T19:31:12Z'
