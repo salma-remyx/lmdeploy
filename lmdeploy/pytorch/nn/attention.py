@@ -7,6 +7,7 @@ from lmdeploy.pytorch.distributed import get_tp_world_rank
 
 from ..backends import OpType, get_backend
 from ..backends.attention import AttentionMetadata
+from .memory_probe import probe_attention_memory
 from .utils import get_distribute_size
 
 
@@ -75,6 +76,13 @@ class Attention(nn.Module):
         self.register_buffer('k_scale', torch.ones((), dtype=torch.float32, device=scale_device))
         self.register_buffer('v_scale', torch.ones((), dtype=torch.float32, device=scale_device))
 
+        # Observability hooks for the attention-memory probe. ``layer_id`` is
+        # caller-supplied (kwargs) so model files decide their own numbering;
+        # ``regime`` is flipped by the paging layer when a step runs in an
+        # eviction / slot-reuse regime instead of the eviction-free one.
+        self.attn_mem_layer_id = kwargs.get('layer_id', -1)
+        self.attn_mem_regime = 'eviction_free'
+
     def _lazy_init(self, device):
         """Lazy init."""
         if not self.alibi_ready:
@@ -106,6 +114,18 @@ class Attention(nn.Module):
     ) -> torch.Tensor:
         """forward."""
         self._lazy_init(query.device)
+
+        # Local import keeps the env flag live per-step rather than frozen at
+        # module load (mirrors model_agent/agent.py's skip_warmup read).
+        from ..envs import attn_mem_probe_enable
+
+        if attn_mem_probe_enable:
+            probe_attention_memory(k_cache,
+                                   v_cache,
+                                   self.attn_mem_layer_id,
+                                   nsa_indices=nsa_indices,
+                                   regime=self.attn_mem_regime,
+                                   block_offsets=attn_metadata.block_offsets)
 
         quant_policy = attn_metadata.quant_policy
         if quant_policy in (QuantPolicy.FP8, QuantPolicy.FP8_E5M2):

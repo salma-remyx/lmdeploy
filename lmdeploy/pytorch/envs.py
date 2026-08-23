@@ -230,6 +230,10 @@ with set_envs():
     fake_capture = env_to_bool('LMDEPLOY_FAKE_CUDA_GRAPH_CAPTURE', False)
     enable_decode_torch_compile = env_to_bool('LMDEPLOY_ENABLE_DECODE_TORCH_COMPILE', False)
 
+    # attention memory probe
+    attn_mem_probe_enable = env_to_bool('LMDEPLOY_ATTN_MEM_PROBE', False)
+    attn_mem_probe_layers = env_to_list_int('LMDEPLOY_ATTN_MEM_PROBE_LAYERS', [])
+
     # opt-ttft
     opt_ttft_policy = env_to_choice('LMDEPLOY_PT_TTFT_POLICY', 'size', {'fifo', 'size'})
     opt_ttft_short_turns = max(1, env_to_int('LMDEPLOY_PT_TTFT_SHORT_TURNS', 3))
