@@ -235,6 +235,11 @@ with set_envs():
     opt_ttft_short_turns = max(1, env_to_int('LMDEPLOY_PT_TTFT_SHORT_TURNS', 3))
     opt_ttft_aging_sec = env_to_float('LMDEPLOY_PT_TTFT_AGING_SEC', 2.0)
 
+    # reduced matrix multiplication
+    # (imported lazily: lmdeploy.pytorch.nn.linear pulls the model stack)
+    from lmdeploy.pytorch.nn.linear.reduced_matmul import parse_rmm_env
+    rmm = parse_rmm_env(os.getenv)
+
 
 def get_all_envs():
     """Get all environment variables."""

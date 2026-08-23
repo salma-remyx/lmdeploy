@@ -15,6 +15,7 @@ from lmdeploy.pytorch.distributed import (
 )
 from lmdeploy.pytorch.model_inputs import get_step_ctx_manager
 
+from .reduced_matmul import reduced_matmul, select_topk_contraction
 from .utils import update_tp_args
 
 
@@ -216,10 +217,38 @@ class LinearBase(nn.Module):
         else:
             return self._forward_lora(x, tp_sizes)
 
+    def _forward_reduced(self, x):
+        """Forward with the contraction dimension reduced (RMM).
+
+        Returns None when the reduction does not apply, so ``forward`` falls
+        back to the full matmul. Only layers owning a plain ``self.weight``
+        (bf16/fp16 and w8a8 layouts) can slice their weight along the
+        contraction dim, so packed layouts (awq, blocked fp8) are left alone.
+        """
+        from lmdeploy.pytorch import envs as _envs
+
+        config = _envs.rmm
+        weight = getattr(self, 'weight', None)
+        # LoRA adapters are computed from the full activations, so a reduced
+        # product would drop their contribution; leave such layers alone.
+        if not config.applies_to(self.layer_type) or weight is None or len(self.lora_adapters) > 0:
+            return None
+        values, indices = select_topk_contraction(x, config.keep_ratio)
+        if indices is None:
+            return None
+        out = reduced_matmul(values, weight[:, indices], self.bias)
+        if self.all_reduce:
+            dist.all_reduce(out, group=self.tp_group)
+        return out
+
     def forward(self, x):
         """Forward of linear layer."""
         if self.tp > 1 and self.tp_mode == TPMode.DP_TP:
             return self._forward_dp_tp(x)
+
+        out = self._forward_reduced(x)
+        if out is not None:
+            return out
 
         if len(self.lora_adapters) == 0:
             return self._forward_default(x, self.all_reduce, None)
