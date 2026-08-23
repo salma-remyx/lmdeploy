@@ -91,7 +91,14 @@ observed_landing_zones:
       during model construction when enable_eplb
     branch: tempo-makespan-aware-expert-parallel-load-balancing-across-m
     timestamp: '2026-08-22T22:25:05Z'
-  last_observed: '2026-08-22T22:25:05Z'
+  - arxiv: 2608.05863v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: "Attention.forward in lmdeploy/pytorch/nn/attention.py:123\
+      \ \u2014 the pre-existing attention boundary every model's forward already passes\
+      \ through; the probe fires there when LMDEPLOY_ATTN_MEM_PROBE=1 (LMDE"
+    branch: runtime-observability-for-heterogeneous-attention-memory
+    timestamp: '2026-08-23T08:48:41Z'
+  last_observed: '2026-08-23T08:48:41Z'
 rejected_shapes:
 - shape_tag: null
   reason_code: null
@@ -100,4 +107,4 @@ rejected_shapes:
   - arxiv: 2402.10076v1
     timestamp: '2026-08-17T23:42:19Z'
 coordination_signals: []
-last_updated: '2026-08-22T22:25:05Z'
+last_updated: '2026-08-23T08:48:41Z'
