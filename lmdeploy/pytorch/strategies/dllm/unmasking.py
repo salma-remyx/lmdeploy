@@ -4,6 +4,7 @@ from torch.profiler import record_function
 
 from lmdeploy.pytorch import consts
 from lmdeploy.pytorch.config import DLLMConfig, UnmaskingStrategy
+from lmdeploy.pytorch.strategies.dllm.pivot_scheduling import pivot_unmask
 
 DLLM_MASKED = consts.DLLM_MASKED
 DLLM_UNMASKED = consts.DLLM_UNMASKED
@@ -66,6 +67,19 @@ class UnmaskingProcessor:
         dllm_mask[is_masked] = DLLM_UNMASKED
         return dllm_mask.flatten()
 
+    def pivot(self, logits: torch.Tensor, token_ids: torch.Tensor, dllm_mask: torch.Tensor):
+        """Commit mid-entropy pivots, then the usual confident remainder."""
+        block_size = self.dllm_config.block_length
+        num_pivots = self._get_denoise_num()
+
+        # Pivots are committed for their downstream effect, not because they
+        # are the most confident positions.
+        dllm_mask = pivot_unmask(logits, token_ids, dllm_mask, block_size, num_pivots)
+
+        # Ripple: with the pivots fixed, the remaining masked positions get
+        # sharper, so also commit whatever now clears the confidence threshold.
+        return self.low_confidence_dynamic(logits, token_ids, dllm_mask)
+
     def sequential(self, dllm_mask: torch.Tensor):
         """sequential."""
         block_size = self.dllm_config.block_length
@@ -111,6 +125,8 @@ class UnmaskingProcessor:
             dllm_mask = self.low_confidence_dynamic(logits, token_ids, dllm_mask)
         elif strategy == UnmaskingStrategy.SEQUENTIAL:
             dllm_mask = self.sequential(dllm_mask)
+        elif strategy == UnmaskingStrategy.PIVOT:
+            dllm_mask = self.pivot(logits, token_ids, dllm_mask)
         else:
             raise RuntimeError(f'strategy {strategy} not supported.')
 

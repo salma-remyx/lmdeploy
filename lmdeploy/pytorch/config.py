@@ -596,6 +596,8 @@ class UnmaskingStrategy(enum.Enum):
     LOW_CONFIDENCE_DYNAMIC = enum.auto()
     # unmasking with topk in a block
     LOW_CONFIDENCE_STATIC = enum.auto()
+    # unmasking by committing mid-entropy pivot positions
+    PIVOT = enum.auto()
 
     @classmethod
     def from_str(cls, strategy: str):
@@ -607,6 +609,8 @@ class UnmaskingStrategy(enum.Enum):
             return cls.LOW_CONFIDENCE_DYNAMIC
         elif strategy == 'low_confidence_static':
             return cls.LOW_CONFIDENCE_STATIC
+        elif strategy == 'pivot':
+            return cls.PIVOT
         else:
             raise ValueError(f'Unknown unmasking strategy: {strategy}')
 

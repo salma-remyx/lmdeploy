@@ -450,7 +450,9 @@ class PytorchEngineConfig:
         logprobs_mode: The mode of logprob, options: ['raw_logits', 'raw_logprobs']
         dllm_block_length: Block size of block diffusion model.
         dllm_unmasking_strategy: Dllm unmasking strategy, options:
-            ['low_confidence_dynamic', 'low_confidence_static', 'sequential'].
+            ['low_confidence_dynamic', 'low_confidence_static', 'sequential',
+            'pivot']. 'pivot' commits mid-entropy positions first to settle
+            their neighbours, then the confident remainder.
         dllm_denoising_steps: Dllm denoising steps.
         dllm_confidence_threshold: dllm unmasking threshold for
             dynamic unmasking.

@@ -759,7 +759,7 @@ class ArgumentHelper:
         return parser.add_argument('--dllm-unmasking-strategy',
                                    type=str,
                                    default='low_confidence_dynamic',
-                                   choices=['low_confidence_dynamic', 'low_confidence_static', 'sequential'],
+                                   choices=['low_confidence_dynamic', 'low_confidence_static', 'sequential', 'pivot'],
                                    help='The unmasking strategy for dllm.')
 
     @staticmethod
