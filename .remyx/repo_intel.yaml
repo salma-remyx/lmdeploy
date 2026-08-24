@@ -43,7 +43,14 @@ observed_landing_zones:
     call_site_specifics: ''
     branch: ripple-pivot-search-active-parallel-decoding-for-diffusion-l
     timestamp: '2026-08-22T14:27:08Z'
-  last_observed: '2026-08-22T14:27:08Z'
+  - arxiv: 2608.14191v1
+    mode: Mode 2 (adapted port)
+    call_site_specifics: "the pre-existing `lmdeploy` console script (setup.py:192)\
+      \ \u2192 lmdeploy/cli/entrypoint.py:run() \u2192 SubCliLite.add_parsers(), which\
+      \ now registers the `lmdeploy lite kv_bit_alloc` subcommand at lmdeploy/cli"
+    branch: kv-cache-compression-through-the-lens-of-transform-coding
+    timestamp: '2026-08-24T04:36:51Z'
+  last_observed: '2026-08-24T04:36:51Z'
 - path: lmdeploy/serve/processors/
   shape_tags:
   - unclassified
@@ -119,4 +126,4 @@ rejected_shapes:
   - arxiv: 2402.10076v1
     timestamp: '2026-08-17T23:42:19Z'
 coordination_signals: []
-last_updated: '2026-08-23T19:31:12Z'
+last_updated: '2026-08-24T04:36:51Z'
