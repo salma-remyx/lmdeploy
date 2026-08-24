@@ -136,9 +136,51 @@ class SubCliLite:
         smooth_quant(**kwargs)
 
     @staticmethod
+    def add_parser_kv_bit_alloc():
+        """Add parser for kv_bit_alloc command."""
+        parser = SubCliLite.subparsers.add_parser('kv_bit_alloc',
+                                                  formatter_class=DefaultsAndTypesHelpFormatter,
+                                                  description=SubCliLite.kv_bit_alloc.__doc__,
+                                                  help=SubCliLite.kv_bit_alloc.__doc__)
+        parser.set_defaults(run=SubCliLite.kv_bit_alloc)
+        parser.add_argument('model', type=str, help='The path of model in hf format')
+        ArgumentHelper.work_dir(parser)
+        ArgumentHelper.calib_dataset(parser)
+        ArgumentHelper.calib_samples(parser)
+        ArgumentHelper.calib_seqlen(parser)
+        ArgumentHelper.calib_batchsize(parser)
+        ArgumentHelper.dtype(parser)
+        ArgumentHelper.trust_remote_code(parser)
+        parser.add_argument('--device', type=str, default='cuda', help='Device for calibration (cuda or npu)')
+        parser.add_argument('--k-bits',
+                            type=int,
+                            default=4,
+                            help='Average key bits per channel for the water-filling budget')
+        parser.add_argument('--v-bits',
+                            type=int,
+                            default=2,
+                            help='Average value bits per channel for the water-filling budget')
+        parser.add_argument('--max-channel-bits',
+                            type=int,
+                            default=8,
+                            help='Per-channel bit ceiling of the allocation')
+        parser.add_argument('--min-channel-bits',
+                            type=int,
+                            default=2,
+                            help='Per-channel bit floor of the allocation')
+
+    @staticmethod
+    def kv_bit_alloc(args):
+        """Allocate KV cache bits per channel by attention-aware water-filling."""
+        from lmdeploy.lite.apis.kv_bit_alloc import kv_bit_alloc
+        kwargs = convert_args(args)
+        kv_bit_alloc(**kwargs)
+
+    @staticmethod
     def add_parsers():
         """Add all parsers."""
         SubCliLite.add_parser_auto_awq()
         SubCliLite.add_parser_auto_gptq()
         SubCliLite.add_parser_calibrate()
         SubCliLite.add_parser_smooth_quant()
+        SubCliLite.add_parser_kv_bit_alloc()
