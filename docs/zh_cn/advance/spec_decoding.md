@@ -103,12 +103,55 @@ deepseek-ai/DeepSeek-V3 \
 --max-batch-size 128
 ```
 
+### 跨词表投机解码
+
+`cross_vocab` proposer 允许使用与主模型*不同*词表（分词器）的草稿模型进行投机解码。该方法改编自 [TokenTiming](https://arxiv.org/abs/2510.15545)，在加载时通过基于 DTW 的 token 对齐一次性建立草稿词表与主模型词表之间的映射，因此任何现成的草稿模型都无需重新训练即可使用。
+
+:::{note}
+- `cross_vocab` 不支持引导式解码（结构化输出）；引导处理器会被忽略并输出警告。
+- 该对齐是静态的，在词表层面构建。如果主模型路径不可用，proposer 将回退到恒等 token 映射。
+:::
+
+#### pipeline
+
+```python
+from lmdeploy import PytorchEngineConfig, pipeline
+from lmdeploy.messages import SpeculativeConfig
+
+
+if __name__ == '__main__':
+
+    model_path = 'meta-llama/Llama-3.1-8B-Instruct'
+    spec_cfg = SpeculativeConfig(
+        method='cross_vocab',
+        num_speculative_tokens=3,
+        model='Qwen/Qwen2-1.5B-Instruct',  # 使用不同词表的草稿模型
+    )
+    pipe = pipeline(model_path, backend_config=PytorchEngineConfig(max_batch_size=128), speculative_config=spec_cfg)
+    response = pipe(['Hi, pls intro yourself', 'Shanghai is'])
+    print(response)
+
+```
+
+#### serving
+
+```shell
+lmdeploy serve api_server \
+meta-llama/Llama-3.1-8B-Instruct \
+--backend pytorch \
+--server-port 24545 \
+--speculative-draft-model Qwen/Qwen2-1.5B-Instruct \
+--speculative-algorithm cross_vocab \
+--speculative-num-draft-tokens 3 \
+--max-batch-size 128
+```
+
 ## 投机解码与结构化输出
 
 投机解码（MTP）可以与[结构化输出](./structed_output.md)结合使用，使草稿模型提出的 token 也遵循语法约束（如 JSON Schema、正则表达式），从而显著提高接受率。
 
 :::{note}
-该功能支持继承自 `DeepseekMTP` 的投机方法，包括 `deepseek_mtp`、`qwen3_5_mtp` 和 `eagle3`。仅支持 PyTorch 后端。
+该功能支持继承自 `DeepseekMTP` 的投机方法，包括 `deepseek_mtp`、`qwen3_5_mtp` 和 `eagle3`。仅支持 PyTorch 后端。请注意，`cross_vocab` 不支持引导式解码；引导处理器会被忽略并输出警告。
 :::
 
 ### 工作原理
