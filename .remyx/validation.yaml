@@ -1,0 +1,76 @@
+question:
+  kind: capability
+  ask: "With Qwen/Qwen2.5-7B-Instruct as target and HuggingFaceTB/SmolLM2-135M-Instruct as draft, does text survive the round trip through the aligner intact, and what share of each vocabulary has no counterpart in the other?"
+loop: {max_iterations: 8, fix_code: true}
+benchmarks:
+  - name: cross-vocab-aligner-fidelity
+    suite:
+      notebook:
+        path: "eval/eval_cross_vocab_alignment.ipynb"
+        packages: [transformers, tokenizers]
+    scorer: roundtrip_text_survival_rate
+    baseline: none
+    metrics:
+      - name: roundtrip_text_survival_rate
+        direction: max
+        # Floor: both are byte-level BPEs sharing all 256 single-byte tokens, so
+        # survival >= 256/151665 = 0.00169; threshold sits just under that floor.
+        # Pigeonhole ceiling: <= 49152/151665 = 0.3241. Expected measured ~0.1-0.3.
+        threshold: 0.0015
+        role: target
+      - name: covered_roundtrip_identity
+        direction: max
+        # Exact-match-first is a bijection on the shared string set: every target
+        # id whose mapped draft id has the SAME string MUST round-trip back to the
+        # same string. Identity is exact — anything < 1.0 is an aligner defect.
+        threshold: 1.0
+        role: guardrail
+      - name: target_vocab_no_counterpart_share
+        direction: max
+        # Pigeonhole floor: >= 1 - 49152/151665 = 0.6759 regardless of content
+        # (at least 102,513 Qwen tokens necessarily have no exact counterpart).
+        threshold: 0.6759
+        role: diagnostic
+      - name: draft_vocab_no_counterpart_share
+        direction: min
+        # Ceiling: |T∩D| >= 256 shared byte tokens, so the uncovered share of the
+        # 49,152-token draft vocab is <= 1 - 256/49152 = 0.99479.
+        threshold: 0.9948
+        role: diagnostic
+      - name: intersection_count_mismatch
+        direction: min
+        # Consistency: covered_target_count must equal covered_draft_count (both
+        # equal |T∩D|); the mismatch is exactly 0 for a correct two-sided build.
+        threshold: 0
+        role: diagnostic
+      - name: probe_text_survival_rate
+        direction: max
+        # Fixed probes (ASCII prose, code/JSON, ChatML, CJK, emoji): at minimum
+        # the plain-ASCII probes ride the shared ASCII-subword core, so a working
+        # exact-match stage keeps some probes byte-identical. No provable floor
+        # beyond that; this is reported, not gated.
+        threshold: 0.1
+        role: diagnostic
+    policy: {guardrail_veto: true}
+    held_constant:
+      - "Same tokenizer pair on every run: Qwen/Qwen2.5-7B-Instruct as target, HuggingFaceTB/SmolLM2-135M-Instruct as draft; tokenizer files only, no model weights"
+      - "Fixed probe corpus inline in the script: ASCII prose, code/JSON, ChatML markup, CJK/multilingual, emoji"
+      - "The aligner tables are a deterministic pure-python function of the two tokenizers (TokenVocabAligner.from_tokenizers); no sampling, no RNG"
+      - "Round trip judged on decoded strings (clean_up_tokenization_spaces=False on both sides) so partial-UTF-8 byte-token decode collapse cannot swap ids while preserving text"
+    avoid:
+      - "No wall-clock metrics: shared CPU makes timing noise and the claim is fidelity, not speed"
+      - "No model-weight downloads, no GPU, no serving run: the paper's 1.57x speedup is out of scope because the PR replaces per-sequence DTW with static vocab tables"
+      - "Do not reimplement the DTW/exact-match logic inline: the script loads the PR's lmdeploy/pytorch/spec_decode/vocab_alignment.py by path (pure python by PR design, so no torch import is pulled in)"
+      - "HF tokenizer revisions resolve to the default branch: tension with the pinned-revision rule recorded here; both repos' tokenizer artifacts are frozen since release and only tokenizer files are loaded, so the measurement is reproducible in practice"
+      - "If from_tokenizers prunes DTW candidates poorly the one-time table build dominates runtime; smoke mode runs the identical build (same code path and data source), so a pathological build cost surfaces as a timeout and is itself a finding"
+    compute: {tier: cpu}
+    provenance:
+      roundtrip_text_survival_rate: "user_guidance"
+      covered_roundtrip_identity: "user_guidance + arXiv:2510.15545 mechanism (exact-match-first bijection on the shared string set)"
+      target_vocab_no_counterpart_share: "user_guidance"
+      draft_vocab_no_counterpart_share: "user_guidance"
+      intersection_count_mismatch: "claim_analysis arithmetic (both covered counts equal |T∩D|)"
+      probe_text_survival_rate: "user_guidance (does text survive the round trip intact)"
+      held_constant: "claim_analysis protocol (offline, CPU-only, no weights, pinned tokenizers, fixed probes)"
+      suite: "synthesized"
+      compute: "claim_analysis protocol (aligner is pure python by PR design; CPU suffices)"
