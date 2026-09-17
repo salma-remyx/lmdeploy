@@ -104,12 +104,55 @@ deepseek-ai/DeepSeek-V3 \
 --max-batch-size 128
 ```
 
+### Cross-Vocabulary Speculation
+
+The `cross_vocab` proposer allows a draft model with a *different* vocabulary (tokenizer) to speculate for the target model. Adapted from [TokenTiming](https://arxiv.org/abs/2510.15545), it aligns the draft and target vocabularies once at load time with a DTW-based token alignment, so any off-the-shelf draft model can be used without retraining.
+
+:::{note}
+- Guided decoding (structured output) is not supported with `cross_vocab`; guided processors are ignored with a warning.
+- The alignment is static and built at the vocabulary level. If the target model path is unavailable, the proposer falls back to an identity token mapping.
+:::
+
+#### pipeline
+
+```python
+from lmdeploy import PytorchEngineConfig, pipeline
+from lmdeploy.messages import SpeculativeConfig
+
+
+if __name__ == '__main__':
+
+    model_path = 'meta-llama/Llama-3.1-8B-Instruct'
+    spec_cfg = SpeculativeConfig(
+        method='cross_vocab',
+        num_speculative_tokens=3,
+        model='Qwen/Qwen2-1.5B-Instruct',  # a draft model with a different vocabulary
+    )
+    pipe = pipeline(model_path, backend_config=PytorchEngineConfig(max_batch_size=128), speculative_config=spec_cfg)
+    response = pipe(['Hi, pls intro yourself', 'Shanghai is'])
+    print(response)
+
+```
+
+#### serving
+
+```shell
+lmdeploy serve api_server \
+meta-llama/Llama-3.1-8B-Instruct \
+--backend pytorch \
+--server-port 24545 \
+--speculative-draft-model Qwen/Qwen2-1.5B-Instruct \
+--speculative-algorithm cross_vocab \
+--speculative-num-draft-tokens 3 \
+--max-batch-size 128
+```
+
 ## Guided Decoding with Speculative Decoding
 
 Speculative decoding (MTP) can be combined with [structured output](./structed_output.md) so that the draft tokens proposed by the spec model also respect the grammar constraints (e.g. JSON schema, regex). This significantly improves the acceptance rate compared to running spec decoding without grammar masks.
 
 :::{note}
-This feature is supported for spec methods that inherit from `DeepseekMTP`, including `deepseek_mtp`, `qwen3_5_mtp`, and `eagle3`. Only the PyTorch backend is supported.
+This feature is supported for spec methods that inherit from `DeepseekMTP`, including `deepseek_mtp`, `qwen3_5_mtp`, and `eagle3`. Only the PyTorch backend is supported. Note that `cross_vocab` does not support guided decoding; guided processors are ignored with a warning.
 :::
 
 ### How it works

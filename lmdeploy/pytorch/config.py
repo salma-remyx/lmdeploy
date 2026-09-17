@@ -664,6 +664,7 @@ class SpecDecodeConfig:
     num_speculative_tokens: int = 1
     model_config: ModelConfig = None
     dist_config: DistConfig = field(default_factory=DistConfig)
+    target_model_path: str = None
 
     @classmethod
     def from_config(
@@ -714,6 +715,7 @@ class SpecDecodeConfig:
             model_config=model_config,
             dist_config=dist_config,
             num_speculative_tokens=num_speculative_tokens,
+            target_model_path=target_model,
         )
         return obj
 
